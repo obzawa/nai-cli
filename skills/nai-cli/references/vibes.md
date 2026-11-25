@@ -1,10 +1,16 @@
 # Vibes and precise references
 
-Vibes carry the look of an image into a generation; precise references carry a character or style.
+Vibes carry the look of an image into a generation; precise references carry a character, a style or, on V5, an outfit.
 
 ## Which models
 
-`--vibe` and `--vibes-from` need a V4.5 or V4 model, and `--ref` a V4.5 model (`--model v4.5`). On V5 they fail with `model_unsupported`; tell the user and let them pick the model.
+`--vibe` and `--vibes-from` need a V4.5 or V4 model (`--model v4.5`); on V5 they fail with `model_unsupported`, so tell the user and let them pick the model. `--ref` works on V5 and V4.5, but on V5 not with `nai inpaint`.
+
+## Precise references
+
+- `--ref IMAGE[:KIND[:STRENGTH[:FIDELITY]]]`. KIND: `both` (default), `character`, `style`; on V5 also `outfit` (clothes only), `character+outfit` (keep the outfit) and `both-any-outfit` (let it change).
+- V5 ignores FIDELITY. V5 Medium switches to V5 Full when a reference is given, which costs more; `warnings` says so.
+- `--ref-strength N` sets every reference's strength; a grid varies it with `--x pr_strength=0.5,1,1.5`.
 
 ## Using Vibes
 

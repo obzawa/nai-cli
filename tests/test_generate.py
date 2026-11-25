@@ -79,10 +79,21 @@ def test_cfg_above_ten_allowed(capsys):
 
 
 def test_cost_refuses_unsupported_references(capsys):
-    code, out = run(capsys, "cost", "--model", "v5", "--refs", "2")
+    code, out = run(capsys, "cost", "--model", "v4", "--refs", "2")
     assert code == 1 and out["code"] == "model_unsupported" and out["feature"] == "precise_reference"
     code, out = run(capsys, "cost", "--model", "v5", "--vibes", "1")
     assert code == 1 and out["feature"] == "vibe"
+    code, out = run(capsys, "cost", "--model", "v5", "--inpaint", "--refs", "1")
+    assert code == 1 and out["feature"] == "precise_reference"
+
+
+def test_v5_references_are_priced_and_raise_medium_effort(capsys):
+    code, plain = run(capsys, "cost", "--model", "v5", "--size", "832x1216")
+    code, out = run(capsys, "cost", "--model", "v5", "--size", "832x1216", "--refs", "2")
+    assert code == 0 and out["cost"]["estimate"] == plain["cost"]["estimate"] + 10
+    code, out = run(capsys, "cost", "--model", "v5-medium", "--refs", "1")
+    assert code == 0 and out["model"] == "nai-diffusion-5-full"
+    assert any("high effort" in w for w in out["warnings"])
 
 
 def test_oversized_image_is_bad_args(capsys, tmp_path):

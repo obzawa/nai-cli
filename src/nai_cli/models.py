@@ -13,6 +13,22 @@ class FixedSettings:
 
 
 @dataclass(frozen=True)
+class References:
+    """How a model takes precise references, as the official capability table has it."""
+
+    # Sent when inpainting; without it they are neither sent nor priced
+    inpainting: bool
+    # Cropped to the closest of 97 size buckets rather than fitted into one of three canvases
+    buckets: bool
+    fidelity: bool
+    outfit: bool
+
+
+V45_REFERENCES = References(inpainting=True, buckets=False, fidelity=True, outfit=False)
+V5_REFERENCES = References(inpainting=False, buckets=True, fidelity=False, outfit=True)
+
+
+@dataclass(frozen=True)
 class Model:
     id: str
     name: str
@@ -27,7 +43,7 @@ class Model:
     tokenizer: str
     max_characters: int
     vibe: bool
-    precise_reference: bool
+    precise_reference: References | None
     auto_text: bool
     transparent: bool
     # Curated models never get nsfw added to the negative prompt
@@ -74,7 +90,7 @@ _V5_COMMON = dict(
     tokenizer="qwen",
     max_characters=32,
     vibe=False,
-    precise_reference=False,
+    precise_reference=V5_REFERENCES,
     auto_text=True,
     transparent=True,
     freeform_position=True,
@@ -93,7 +109,7 @@ _V45_COMMON = dict(
     tokenizer="t5",
     max_characters=6,
     vibe=True,
-    precise_reference=True,
+    precise_reference=V45_REFERENCES,
     auto_text=False,
     transparent=False,
     variety_plus=True,
@@ -106,7 +122,7 @@ _V4_COMMON = dict(
     _V45_COMMON,
     family="v4",
     default_scale=5.5,
-    precise_reference=False,
+    precise_reference=None,
     enhance_hint=False,
     text_limit=None,
     variety_sigma=19.0,
@@ -268,6 +284,16 @@ def with_effort(model: Model, typed: str | None, configured: str | None) -> Mode
 def effort_of(model_id: str) -> str | None:
     """The effort a V5 Full model id stands for."""
     return next((effort for effort, found in _EFFORT_MODELS.items() if found == model_id), None)
+
+
+HIGH_EFFORT_FOR_REFERENCES = "precise references need high effort, so V5 Full runs instead of V5 Full Medium"
+
+
+def for_references(model: Model, references: bool) -> Model:
+    """V5 Full in place of medium effort, which the official client never sends precise references with."""
+    if not references or not model.medium_effort:
+        return model
+    return MODELS[_EFFORT_MODELS["high"]]
 
 
 def with_hidden_options(model: Model, enabled: bool = True) -> Model:

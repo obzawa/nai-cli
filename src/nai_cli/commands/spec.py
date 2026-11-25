@@ -36,10 +36,11 @@ class Prepared:
 
 def prepare(s: GenSettings) -> Prepared:
     """Everything up to pricing, shared by the generation commands and lint."""
+    sources = [*s.stored_vibes, *load_vibes(s.vibes, s.model.id)]
+    # Checked before any reference is prepared or encoded for a model that would refuse it
+    outfits = sum(r.kind == R.OUTFIT_KIND for r in s.references)
+    R.check_references(s.model, s.action, len(sources), len(s.references), outfits)
     spec, warnings, job = _spec(s)
-    sources = [*s.stored_vibes, *load_vibes(s.vibes, spec.model.id)]
-    # Checked before anything is encoded for a model that would refuse it
-    R.check_references(spec.model, len(sources), len(spec.references))
     pending = attach_vibes(spec, sources)
     # A damaged image fails here, before any other Vibe is paid for
     for encode in pending:
@@ -108,7 +109,7 @@ def _spec(s: GenSettings) -> tuple[R.GenSpec, list[str], inpaint.Job | None]:
         enhance_hint=plan is not None and not plan.upscaled,
         upscaled_enhance=plan is not None and plan.upscaled,
         legacy_uc=s.legacy_uc,
-        references=load_precise(s.references, s.model.transparent),
+        references=load_precise(s.references, s.model),
     )
     return spec, warnings, job
 

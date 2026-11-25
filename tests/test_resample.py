@@ -68,3 +68,31 @@ def test_precise_reference_matches_official(source, digest):
     img = Image.fromarray(source, "RGBA" if source.shape[2] == 4 else "RGB")
     out = np.asarray(images.precise_reference_canvas(img).convert("RGBA"))
     assert hashlib.sha256(out.tobytes()).hexdigest() == digest
+
+
+@pytest.mark.parametrize(
+    ("source", "size", "digest"),
+    [
+        (_pattern(37, 53, True), (832, 1216), "c0b49080db925dbf65ce13c6ef760b6728aebfced2befec87f05dfd28046dd81"),
+        (_stealth(300, 300), (1024, 1024), "332d8812d58def8288e5a0b05d371879d5784b553e4ae40bc882a0c19e1ef7ff"),
+        (
+            _pattern(120, 70, False)[..., :3],
+            (1344, 768),
+            "efdeddf6cdeb101c3db026fbf115d7343b06ccecdee64c9ef9b203c433529766",
+        ),
+        # Already the bucket's width, so only cropped
+        (_pattern(1024, 1050, True), (1024, 1024), "84fd03a37d22d34ece915f2bcf308051169af349c0bd4c46ca4551f8112939e2"),
+        (
+            _pattern(50, 900, False)[..., :3],
+            (256, 4096),
+            "15fd8014a92ee2865fae998081d52e6f714825921055b84cb78477b702ec318a",
+        ),
+        # A bucket's exact size is sent as it is
+        (_pattern(832, 1216, True), (832, 1216), "7d694e45760eb84a528abbae3d0b39e54861fbf88b158449d7e3f1d3daa80460"),
+    ],
+)
+def test_bucketed_reference_matches_official(source, size, digest):
+    img = Image.fromarray(source, "RGBA" if source.shape[2] == 4 else "RGB")
+    out = np.asarray(images.bucketed_reference(img).convert("RGBA"))
+    assert (out.shape[1], out.shape[0]) == size
+    assert hashlib.sha256(out.tobytes()).hexdigest() == digest

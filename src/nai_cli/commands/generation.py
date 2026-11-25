@@ -1,7 +1,7 @@
 """Settings of the generation commands, resolved once from options, an imported image and the config."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -191,8 +191,12 @@ def resolve(opts: dict[str, Any], ctx: Context, command: str) -> GenSettings:
     if command in FROM_IMAGE and imported is None and not typed["prompt"] and not opts.get("random_prompt"):
         raise errors.NaiError(errors.NO_METADATA, "the image has no generation settings; describe it with --prompt")
     got = imported or import_image.Imported(configured(chosen or default))
-    model = got.model
     warnings = list(got.warnings)
+    references = _references(opts, warnings)
+    model = models.for_references(got.model, bool(references))
+    if model is not got.model:
+        model = models.with_hidden_options(model, bool(d.get("v5_hidden_options")))
+        warnings.append(models.HIGH_EFFORT_FOR_REFERENCES)
     written = _random_prompt(opts, typed) or _comfyui(opts, d, typed, model)
     characters, use_coords = (
         (written.characters, written.use_coords)
@@ -241,7 +245,7 @@ def resolve(opts: dict[str, Any], ctx: Context, command: str) -> GenSettings:
         noise=noise,
         stored_vibes=_stored_vibes(opts, got),
         vibes=tuple(vibe_ref(v) for v in opts.get("vibe") or []),
-        references=tuple(precise_ref(r) for r in opts.get("ref") or []),
+        references=references,
         drawn=_drawn(canvas) if command in (*FROM_IMAGE, "inpaint") else None,
         output=output.resolve(opts.get("output"), cfg),
         dry_run=bool(opts.get("dry_run")) or ctx.dry_run,
@@ -249,6 +253,19 @@ def resolve(opts: dict[str, Any], ctx: Context, command: str) -> GenSettings:
         show_body=bool(opts.get("show_body")),
         warnings=tuple(warnings),
     )
+
+
+def _references(opts: dict[str, Any], warnings: list[str]) -> tuple[PreciseRef, ...]:
+    references = tuple(precise_ref(r) for r in opts.get("ref") or [])
+    # As the official grid's pr_strength and pr_fidelity, which apply to every reference
+    shared = {
+        field: opts[option]
+        for field, option in (("strength", "ref_strength"), ("fidelity", "ref_fidelity"))
+        if opts.get(option) is not None
+    }
+    if shared and not references:
+        warnings.append("--ref-strength and --ref-fidelity have no precise reference to apply to")
+    return tuple(replace(r, **shared) for r in references)
 
 
 def _first(*values: Any) -> Any:

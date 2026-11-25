@@ -534,8 +534,11 @@ def _add_generation_args(p: argparse.ArgumentParser) -> None:
         "--ref",
         action="append",
         metavar="IMAGE[:KIND[:STRENGTH[:FIDELITY]]]",
-        help="precise reference; KIND is both (default), character or style (V4.5)",
+        help="precise reference; KIND is both (default), both-any-outfit, character, character+outfit, style or "
+        "outfit (V5), or both, character or style (V4.5)",
     )
+    refs.add_argument("--ref-strength", type=finite, help="strength of every precise reference, over their own")
+    refs.add_argument("--ref-fidelity", type=finite, help="fidelity of every precise reference, over their own (V4.5)")
 
 
 def _add_import_args(p: argparse.ArgumentParser) -> None:

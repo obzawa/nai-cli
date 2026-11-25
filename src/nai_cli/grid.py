@@ -48,10 +48,21 @@ PARAMS = {
         Param("model", "--model", Kind.CHOICE),
         Param("prompt", "--prompt", Kind.TEXT),
         Param("neg", "--neg", Kind.TEXT),
+        Param("ref_strength", "--ref-strength", Kind.NUMBER),
+        Param("ref_fidelity", "--ref-fidelity", Kind.NUMBER),
     )
 }
 # The official names
-ALIASES = {"scale": "cfg", "uc": "neg", "cfg-rescale": "cfg_rescale", "noise-schedule": "noise_schedule"}
+ALIASES = {
+    "scale": "cfg",
+    "uc": "neg",
+    "cfg-rescale": "cfg_rescale",
+    "noise-schedule": "noise_schedule",
+    "pr_strength": "ref_strength",
+    "pr_fidelity": "ref_fidelity",
+    "ref-strength": "ref_strength",
+    "ref-fidelity": "ref_fidelity",
+}
 
 
 @dataclass(frozen=True)

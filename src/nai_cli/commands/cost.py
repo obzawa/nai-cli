@@ -20,19 +20,21 @@ class CostSettings:
     vibes: int
     encode: int
     refs: int
+    warnings: tuple[str, ...]
 
 
 def resolve(opts: dict[str, Any], ctx: Context) -> CostSettings:
     d = ctx.config.defaults
     action = "infill" if opts.get("inpaint") else "generate"
     picked = models.resolve(opts.get("model") or d.get("model"))
-    chosen = models.with_effort(picked, opts.get("effort"), d.get("effort"))
     refs, vibes, encode = opts.get("refs") or 0, opts.get("vibes") or 0, opts.get("encode") or 0
     if vibes < 0 or refs < 0 or not 0 <= encode <= vibes:
         raise errors.NaiError(
             errors.BAD_ARGS, "--vibes and --refs cannot be negative, and --encode must be within 0 and --vibes"
         )
-    R.check_references(chosen, vibes, refs)
+    effort = models.with_effort(picked, opts.get("effort"), d.get("effort"))
+    chosen = models.for_references(effort, refs > 0)
+    R.check_references(chosen, action, vibes, refs)
     model = models.for_action(chosen, action)
     w, h = presets.resolve_size(opts.get("size") or d.get("size"))
     n = opts["n"] if opts.get("n") is not None else d.get("n", 1)
@@ -46,11 +48,12 @@ def resolve(opts: dict[str, Any], ctx: Context) -> CostSettings:
     R.check_range("strength", strength, models.INPAINT_STRENGTH_RANGE)
     if not R.vibes_sent(action, refs):
         vibes = encode = 0
-    return CostSettings(model, action, (w, h), steps, n, strength, vibes, encode, refs)
+    warnings = (models.HIGH_EFFORT_FOR_REFERENCES,) if chosen is not effort else ()
+    return CostSettings(model, action, (w, h), steps, n, strength, vibes, encode, refs, warnings)
 
 
 def run(s: CostSettings, ctx: Context) -> dict[str, Any]:
-    warnings: list[str] = []
+    warnings = list(s.warnings)
     account = ctx.dry_account(warnings)
     est = cost.generation(
         s.model,

@@ -80,12 +80,51 @@ def test_medium_forces_fixed_settings_and_drops_negatives():
     assert built.warnings
 
 
-def test_v5_rejects_vibe_and_precise_reference():
+def test_v5_rejects_vibe():
     with pytest.raises(errors.NaiError) as e:
         request.build(spec(vibes=[Vibe("enc", 0.5)]))
     assert e.value.code == errors.MODEL_UNSUPPORTED and e.value.detail["feature"] == "vibe"
-    with pytest.raises(errors.NaiError):
-        request.build(spec(references=[PreciseReference(b"x", "character", 1, 1)]))
+
+
+def test_v5_precise_references_keep_outfits_and_drop_fidelity():
+    kinds = ["character_mainoutfit", "character&style_anyoutfit", "costume", "style"]
+    built = request.build(spec(references=[PreciseReference(b"x", k, 3.0, 0.5) for k in kinds]))
+    p = built.body["parameters"]
+    assert [d["caption"]["base_caption"] for d in p["director_reference_descriptions"]] == kinds
+    assert p["director_reference_strength_values"] == [3.0] * 4
+    assert p["director_reference_secondary_strength_values"] == [0.0] * 4
+    assert any("fidelity" in w for w in built.warnings)
+
+
+def test_v45_sends_outfit_preferences_as_plain_kinds_and_refuses_outfits():
+    refs = [
+        PreciseReference(b"x", "character_mainoutfit", 1, 1),
+        PreciseReference(b"x", "character&style_anyoutfit", 1, 1),
+    ]
+    built = request.build(spec(model="v4.5", references=refs))
+    p = built.body["parameters"]
+    assert [d["caption"]["base_caption"] for d in p["director_reference_descriptions"]] == [
+        "character",
+        "character&style",
+    ]
+    assert any("outfit preference" in w for w in built.warnings)
+    with pytest.raises(errors.NaiError) as e:
+        request.build(spec(model="v4.5", references=[PreciseReference(b"x", "costume", 1, 1)]))
+    assert e.value.code == errors.MODEL_UNSUPPORTED and e.value.detail["feature"] == "outfit_reference"
+
+
+def test_v5_takes_no_precise_reference_when_inpainting():
+    ref = PreciseReference(b"x", "character", 1, 1)
+    for model in ("v5", "v5-curated", "v5-medium"):
+        with pytest.raises(errors.NaiError) as e:
+            request.build(spec(model=model, action="infill", image=b"img", mask=b"mask", references=[ref]))
+        assert e.value.code == errors.MODEL_UNSUPPORTED and e.value.detail["feature"] == "precise_reference"
+
+
+def test_v4_has_no_precise_references():
+    with pytest.raises(errors.NaiError) as e:
+        request.build(spec(model="v4", references=[PreciseReference(b"x", "character", 1, 1)]))
+    assert e.value.detail["feature"] == "precise_reference"
 
 
 def test_v45_precise_reference_wins_over_vibe():

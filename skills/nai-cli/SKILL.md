@@ -51,7 +51,7 @@ Read the reference when the task comes up:
 
 - Repainting part of an image or extending the canvas: [references/inpaint.md](references/inpaint.md).
 - Many images from one file, or a sheet comparing settings: [references/batch.md](references/batch.md).
-- Vibes and precise references, which V5 does not take: [references/vibes.md](references/vibes.md).
+- Vibes, which V5 does not take, and precise references: [references/vibes.md](references/vibes.md).
 
 Smaller ones:
 

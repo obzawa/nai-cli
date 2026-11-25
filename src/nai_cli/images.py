@@ -1,6 +1,7 @@
 """Images as the requests send them: opened, converted, resized for import, masked and stripped."""
 
 import io
+import math
 from collections.abc import Collection
 from pathlib import Path
 
@@ -11,6 +12,26 @@ from nai_cli.presets import GRID, MAX_PIXELS, nearest_grid
 
 LATENT_SCALE = 8
 PRECISE_REFERENCE_CANVASES = [(1024, 1536), (1536, 1024), (1472, 1472)]
+_PORTRAIT_BUCKETS = [
+    (width, height)
+    for width, tallest, shortest in [
+        (256, 4096, 3328),
+        (320, 3264, 2752),
+        (384, 2688, 2368),
+        (448, 2304, 2112),
+        (512, 2048, 1856),
+        (576, 1792, 1664),
+        (640, 1600, 1536),
+        (704, 1472, 1408),
+        (768, 1344, 1280),
+        (832, 1216, 1216),
+        (896, 1152, 1152),
+        (960, 1088, 1088),
+    ]
+    for height in range(tallest, shortest - 1, -64)
+]
+# In the official order, which settles ties: tallest first, square, then their mirrors
+REFERENCE_BUCKETS = [*_PORTRAIT_BUCKETS, (1024, 1024), *((h, w) for w, h in reversed(_PORTRAIT_BUCKETS))]
 # Masks are binarized on alpha before sending; values above this are repainted
 MASK_THRESHOLD = 155
 
@@ -187,6 +208,29 @@ def precise_reference_canvas(img: Image.Image, transparent: bool = False) -> Ima
     left, top = resample.js_round((cw - width) / 2), resample.js_round((ch - height) / 2)
     canvas.paste(resample.lanczos(img, width, height).convert("RGBA"), (left, top))
     return canvas if transparent else resample.fill_background(canvas, (0, 0, 0))
+
+
+def bucketed_reference_image(path: str | Path) -> bytes:
+    return to_png(bucketed_reference(open_image(path)))
+
+
+def bucketed_reference(img: Image.Image) -> Image.Image:
+    """Scaled to cover the size bucket closest in aspect ratio and cropped to it from the centre; transparency
+    stays."""
+    img = clean_source(img)
+    width, height = reference_bucket(img.width, img.height)
+    if img.size == (width, height):
+        return img
+    scale = max(width / img.width, height / img.height)
+    scaled_w = max(math.floor(img.width * scale + 0.5), width)
+    scaled_h = max(math.floor(img.height * scale + 0.5), height)
+    left, top = (scaled_w - width) // 2, (scaled_h - height) // 2
+    return resample.lanczos(img, scaled_w, scaled_h).crop((left, top, left + width, top + height))
+
+
+def reference_bucket(width: int, height: int) -> tuple[int, int]:
+    aspect = math.log(max(width, 1) / max(height, 1))
+    return min(REFERENCE_BUCKETS, key=lambda b: abs(aspect - math.log(b[0] / b[1])))
 
 
 def size_of(path: str | Path) -> tuple[int, int]:

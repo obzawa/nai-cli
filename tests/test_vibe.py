@@ -12,7 +12,8 @@ from helpers import FakeClient, fake_clients, run, set_cap
 from PIL import Image, PngImagePlugin
 from samples import CUT, bomb_png, v45_image, vibe_entry
 
-from nai_cli import caches, decode, errors, fs, ledger, vibe
+from nai_cli import caches, decode, errors, fs, ledger, models, vibe
+from nai_cli.commands.references import load_precise, precise_ref
 
 V45 = "nai-diffusion-4-5-full"
 
@@ -512,6 +513,53 @@ def test_precise_reference_fields(capsys, tmp_path):
     assert p["director_reference_secondary_strength_values"] == [0.75]
     code, out = run(capsys, "gen", "--model", "v4.5", "--ref", f"{img}:style:x", "--dry-run")
     assert code == 1 and out["code"] == "bad_args"
+
+
+@pytest.mark.parametrize(
+    ("kind", "sent"),
+    [
+        ("both", "character&style"),
+        ("both-any-outfit", "character&style_anyoutfit"),
+        ("character", "character"),
+        ("character+outfit", "character_mainoutfit"),
+        ("outfit", "costume"),
+        ("costume", "costume"),
+    ],
+)
+def test_v5_precise_reference_kinds(capsys, tmp_path, kind, sent):
+    img = tmp_path / "r.png"
+    Image.new("RGBA", (64, 64)).save(img)
+    code, out = run(capsys, "gen", "--prompt", "x", "--ref", f"{img}:{kind}", "--dry-run")
+    p = out["body"]["parameters"]
+    assert code == 0 and p["director_reference_descriptions"][0]["caption"]["base_caption"] == sent
+    assert p["director_reference_secondary_strength_values"] == [0]
+
+
+def test_v5_reference_is_bucketed_and_keeps_transparency(tmp_path):
+    img = tmp_path / "r.png"
+    Image.new("RGBA", (70, 120), (10, 20, 30, 0)).save(img)
+    v5, v45 = models.resolve("v5"), models.resolve("v4.5")
+    sent = Image.open(io.BytesIO(load_precise((precise_ref(str(img)),), v5)[0].image))
+    assert sent.size == (768, 1344) and sent.mode == "RGBA" and sent.getpixel((0, 0))[3] == 0
+    fitted = Image.open(io.BytesIO(load_precise((precise_ref(str(img)),), v45)[0].image))
+    assert fitted.size == (1024, 1536) and fitted.mode == "RGB"
+
+
+def test_v5_medium_with_references_runs_at_high_effort(capsys, tmp_path):
+    img = tmp_path / "r.png"
+    Image.new("RGB", (64, 64)).save(img)
+    code, out = run(capsys, "gen", "--prompt", "x", "--model", "v5-medium", "--ref", str(img), "--dry-run")
+    assert code == 0 and out["body"]["model"] == "nai-diffusion-5-full"
+    assert any("high effort" in w for w in out["warnings"])
+    code, out = run(capsys, "gen", "--prompt", "x", "--effort", "medium", "--dry-run")
+    assert code == 0 and out["body"]["model"] == "nai-diffusion-5-full-medium"
+
+
+def test_outfit_reference_needs_v5(capsys, tmp_path):
+    img = tmp_path / "r.png"
+    Image.new("RGB", (64, 64)).save(img)
+    code, out = run(capsys, "gen", "--prompt", "x", "--model", "v4.5", "--ref", f"{img}:outfit", "--dry-run")
+    assert code == 1 and out["code"] == "model_unsupported" and out["feature"] == "outfit_reference"
 
 
 def test_body_shows_the_vibes_encoded_for_the_request(capsys, with_token, tmp_path):

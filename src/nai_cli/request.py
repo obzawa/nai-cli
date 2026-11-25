@@ -81,6 +81,11 @@ class Vibe:
     strength: float
 
 
+OUTFIT_KIND = "costume"
+# Outfit preferences fall back to the plain kinds on a model without outfit references
+_PLAIN_KINDS = {"character_mainoutfit": "character", "character&style_anyoutfit": "character&style"}
+
+
 @dataclass
 class PreciseReference:
     image: bytes
@@ -287,18 +292,35 @@ def check_range(label: str, value: float, limits: tuple[float, float]) -> None:
         raise errors.NaiError(errors.BAD_ARGS, f"{label} must be within {bounds}")
 
 
-def check_references(model: models.Model, vibes: int, references: int) -> None:
+def check_references(model: models.Model, action: str, vibes: int, references: int, outfits: int = 0) -> None:
     """Against the model chosen, not the one it inpaints with: the official client offers Vibes and precise
-    references by the model chosen, so V5 Curated has neither even though it inpaints with V4.5 Curated."""
+    references, and prices them, by the model chosen."""
     if vibes and not model.vibe:
         raise errors.NaiError(
             errors.MODEL_UNSUPPORTED, f"{model.name} does not support Vibe", feature="vibe", model=model.id
         )
-    if references and not model.precise_reference:
+    if not references:
+        return
+    support = model.precise_reference
+    if support is None:
         raise errors.NaiError(
             errors.MODEL_UNSUPPORTED,
             f"{model.name} does not support precise references",
             feature="precise_reference",
+            model=model.id,
+        )
+    if action == "infill" and not support.inpainting:
+        raise errors.NaiError(
+            errors.MODEL_UNSUPPORTED,
+            f"{model.name} does not take precise references when inpainting",
+            feature="precise_reference",
+            model=model.id,
+        )
+    if outfits and not support.outfit:
+        raise errors.NaiError(
+            errors.MODEL_UNSUPPORTED,
+            f"{model.name} does not support outfit references",
+            feature="outfit_reference",
             model=model.id,
         )
     if references > models.MAX_PRECISE_REFERENCES:
@@ -382,7 +404,8 @@ def _check_values(spec: GenSpec) -> None:
 
 
 def build(spec: GenSpec) -> Built:
-    check_references(spec.model, len(spec.vibes), len(spec.references))
+    outfits = sum(r.kind == OUTFIT_KIND for r in spec.references)
+    check_references(spec.model, spec.action, len(spec.vibes), len(spec.references), outfits)
     # Each side goes on the grid just before sending, as in the official client; the image keeps its size
     spec = replace(spec, width=presets.nearest_grid(spec.width), height=presets.nearest_grid(spec.height))
     spec, warnings = _switch_to_inpainting(spec)
@@ -583,14 +606,24 @@ def _references(spec: GenSpec, warnings: list[str]) -> dict[str, Any]:
     if spec.references:
         if spec.vibes:
             warnings.append("Vibes are not sent with precise references; ignored")
+        support = spec.model.precise_reference
+        assert support is not None
+        kinds = [r.kind if support.outfit else _PLAIN_KINDS.get(r.kind, r.kind) for r in spec.references]
+        if kinds != [r.kind for r in spec.references]:
+            warnings.append(f"{spec.model.name} has no outfit preference; those references are sent without it")
+        # Without fidelity the official client sends every reference at fidelity 1
+        if not support.fidelity and any(r.fidelity != 1.0 for r in spec.references):
+            warnings.append(f"{spec.model.name} has no precise reference fidelity; ignored")
         return {
             "director_reference_images": [base64.b64encode(r.image).decode() for r in spec.references],
             "director_reference_descriptions": [
-                {"caption": {"base_caption": r.kind, "char_captions": []}, "legacy_uc": False} for r in spec.references
+                {"caption": {"base_caption": kind, "char_captions": []}, "legacy_uc": False} for kind in kinds
             ],
             "director_reference_information_extracted": [1 for _ in spec.references],
             "director_reference_strength_values": [r.strength for r in spec.references],
-            "director_reference_secondary_strength_values": [1.0 - r.fidelity for r in spec.references],
+            "director_reference_secondary_strength_values": [
+                1.0 - r.fidelity if support.fidelity else 0.0 for r in spec.references
+            ],
         }
     if vibes_used(spec):
         strengths = [v.strength for v in spec.vibes]

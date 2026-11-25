@@ -4,14 +4,19 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 
-from nai_cli import errors, images, values, vibe
+from nai_cli import errors, images, models, values, vibe
 from nai_cli import request as R
 
+# Names on the command line, then the official ones; both keeps the outfit and character does not, as the
+# official client starts them
 PRECISE_KINDS = {
     "character": "character",
+    "character+outfit": "character_mainoutfit",
     "style": "style",
     "both": "character&style",
-    "character&style": "character&style",
+    "both-any-outfit": "character&style_anyoutfit",
+    "outfit": R.OUTFIT_KIND,
+    **{kind: kind for kind in ("character&style", "character_mainoutfit", "character&style_anyoutfit", "costume")},
 }
 
 
@@ -41,7 +46,11 @@ def precise_ref(value: str) -> PreciseRef:
     # Character and style by default, as the official client adds a reference
     kind = PRECISE_KINDS.get(kind_name or "both")
     if kind is None:
-        raise errors.NaiError(errors.BAD_ARGS, f"precise reference kind must be both, character or style: {value}")
+        raise errors.NaiError(
+            errors.BAD_ARGS,
+            f"precise reference kind must be both, both-any-outfit, character, character+outfit, style or outfit: "
+            f"{value}",
+        )
     return PreciseRef(path, kind, _number(strength, 1.0, value), _number(fidelity, 1.0, value))
 
 
@@ -49,11 +58,15 @@ def load_vibes(refs: tuple[VibeRef, ...], model: str) -> list[vibe.VibeSource]:
     return [source for ref in refs for source in vibe.load(ref.path, ref.strength, ref.information_extracted, model)]
 
 
-def load_precise(refs: tuple[PreciseRef, ...], transparent: bool) -> list[R.PreciseReference]:
-    return [
-        R.PreciseReference(images.precise_reference_image(ref.path, transparent), ref.kind, ref.strength, ref.fidelity)
-        for ref in refs
-    ]
+def load_precise(refs: tuple[PreciseRef, ...], model: models.Model) -> list[R.PreciseReference]:
+    return [R.PreciseReference(_reference_image(ref.path, model), ref.kind, ref.strength, ref.fidelity) for ref in refs]
+
+
+def _reference_image(path: Path, model: models.Model) -> bytes:
+    support = model.precise_reference
+    if support is not None and support.buckets:
+        return images.bucketed_reference_image(path)
+    return images.precise_reference_image(path, model.transparent)
 
 
 def _split(value: str) -> tuple[Path, list[str]]:

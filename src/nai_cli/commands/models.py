@@ -32,6 +32,7 @@ def run(s: ModelsSettings, ctx: Context) -> dict[str, Any]:
 
 def _model_json(model: models.Model, aliases: list[str]) -> dict[str, Any]:
     fixed = model.fixed
+    references = model.precise_reference
     return {
         "id": model.id,
         "name": model.name,
@@ -43,7 +44,10 @@ def _model_json(model: models.Model, aliases: list[str]) -> dict[str, Any]:
         "text_limit": model.text_limit,
         "max_characters": model.max_characters,
         "vibe": model.vibe,
-        "precise_reference": model.precise_reference,
+        "precise_reference": references is not None,
+        "reference_inpainting": references is not None and references.inpainting,
+        "reference_fidelity": references is not None and references.fidelity,
+        "outfit_reference": references is not None and references.outfit,
         "transparent": model.transparent,
         "furry": model.furry_mode,
         "auto_text": model.auto_text,

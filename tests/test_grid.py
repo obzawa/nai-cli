@@ -113,6 +113,16 @@ def test_grid_dry_run_prices_every_cell(capsys, with_token):
     assert "sheet" not in lines[-1]["grid"] and "estimate" in lines[-1]["batch"]
 
 
+def test_grid_varies_every_precise_reference(capsys, with_token, tmp_path):
+    ref = tmp_path / "r.png"
+    Image.new("RGB", (64, 64)).save(ref)
+    argv = ["--dry-run", "--x", "pr_strength=0.5,2", "gen", "--prompt", "cat", "--ref", f"{ref}::1", "--ref", str(ref)]
+    code, lines = _grid(capsys, *argv)
+    strengths = [line["body"]["parameters"]["director_reference_strength_values"] for line in lines[:-1]]
+    assert code == 0 and strengths == [[0.5, 0.5], [2, 2]]
+    assert _axis("pr_fidelity=0.2,0.4").params == (grid.PARAMS["ref_fidelity"],)
+
+
 def test_bad_grid_prints_a_summary(capsys):
     code, lines = _grid(capsys, "--x", "steps=nope", "gen", "--prompt", "cat")
     assert code == 1 and lines[-1]["type"] == "summary" and lines[-1]["code"] == "bad_args"
