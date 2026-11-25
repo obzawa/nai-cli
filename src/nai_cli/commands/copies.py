@@ -9,44 +9,61 @@ from typing import Any
 from PIL import Image
 
 from nai_cli import decode, errors, fs, images, meta, naming, values
-from nai_cli.commands import output
+from nai_cli.commands import output, sources
 from nai_cli.commands.context import Context
 from nai_cli.commands.output import IMAGE_SUFFIXES
+from nai_cli.commands.sources import Source
+
+# What a folder is searched for: the formats images are shared in
+FOLDER_SUFFIXES = (".png", ".webp", ".jpg", ".jpeg")
 
 
 @dataclass(frozen=True)
 class Targets:
-    images: tuple[Path, ...]
+    images: tuple[Source, ...]
     # A .png name for one image; taken, it gets the next number, as every name does
     exact: Path | None
     folder: Path | None
     # Without -o: the output folder and its folder rule, as generated images are filed
     filed: naming.Destination
+    # Named by the day and a number, not after the source
+    rename: bool
     when: datetime
     dry_run: bool
 
 
 def resolve(opts: dict[str, Any], ctx: Context) -> Targets:
-    sources = tuple(map(Path, opts["images"]))
-    given = values.path(opts["output"]) if opts.get("output") else None
+    given = tuple(map(Path, opts["images"]))
+    found = sources.expand(given, FOLDER_SUFFIXES, bool(opts.get("recursive")))
+    if not found:
+        raise errors.NaiError(errors.BAD_ARGS, "no images in the folders given")
+    out = values.path(opts["output"]) if opts.get("output") else None
+    rename = bool(opts.get("rename"))
     exact = folder = None
-    if given is not None and given.suffix.lower() == ".png":
-        if len(sources) > 1:
+    if out is not None and out.suffix.lower() == ".png":
+        # A folder stands for as many images as it holds, even when it holds one
+        if len(found) > 1 or any(fs.is_folder(p) for p in given):
             raise errors.NaiError(errors.BAD_ARGS, "-o names one file; give a folder for several images")
-        exact = given
-    elif given is not None:
-        if given.suffix.lower() in IMAGE_SUFFIXES and not fs.is_folder(given):
-            raise errors.NaiError(errors.BAD_ARGS, f"copies are saved as PNG; give -o a .png name or a folder: {given}")
-        folder = given
-    return Targets(sources, exact, folder, output.filed(ctx.config), ctx.now(), ctx.dry_run)
+        if rename:
+            raise errors.NaiError(errors.BAD_ARGS, "--rename names the copies itself; give -o a folder, or no -o")
+        exact = out
+    elif out is not None:
+        if out.suffix.lower() in IMAGE_SUFFIXES and not fs.is_folder(out):
+            raise errors.NaiError(errors.BAD_ARGS, f"copies are saved as PNG; give -o a .png name or a folder: {out}")
+        folder = out
+    return Targets(found, exact, folder, output.filed(ctx.config), rename, ctx.now(), ctx.dry_run)
 
 
 def write(t: Targets, label: str, make: Callable[[Path], bytes], warnings: list[str] | None = None) -> dict[str, Any]:
-    """NAME_label.png in the output folder, or NAME.png in the folder given; warnings are those make adds."""
+    """NAME_label.png in the output folder, or NAME.png in the folder given, under the place its source has in the
+    folder it came from; with rename, DATE-NUMBER.png there. Warnings are those make adds and one about names that
+    give the image away."""
     # Every image is made before anything is written, so a bad one leaves no partial set
-    copies = [make(source) for source in t.images]
-    targets = [_target(t, source, label, data) for source, data in zip(t.images, copies, strict=True)]
-    noted = {"warnings": warnings} if warnings else {}
+    copies = [make(source.path) for source in t.images]
+    days = fs.DayNumbers(t.when)
+    targets = [_target(t, source, label, data, days) for source, data in zip(t.images, copies, strict=True)]
+    notes = [*(warnings or []), *_telling_names(t)]
+    noted = {"warnings": notes} if notes else {}
     if t.dry_run:
         for target in targets:
             output.check_folder(target.parent, target if target == t.exact else None)
@@ -75,12 +92,30 @@ def _free_names(targets: list[Path]) -> list[Path]:
     return out
 
 
-def _target(t: Targets, source: Path, label: str, data: bytes) -> Path:
+def _target(t: Targets, source: Source, label: str, data: bytes, days: fs.DayNumbers) -> Path:
     if t.exact is not None:
         return t.exact
     if t.folder is not None:
-        return t.folder / f"{naming.fit(source.stem)}.png"
-    return t.filed.folder_for(_kept(data, t.when)) / f"{naming.fit(source.stem, '_' + label)}.png"
+        folder, kept = t.folder / source.relative.parent, ""
+    else:
+        folder, kept = t.filed.folder_for(_kept(data, t.when)), "_" + label
+    if t.rename:
+        return days.next_in(folder)
+    return folder / f"{naming.fit(source.path.stem, kept)}.png"
+
+
+def _telling_names(t: Targets) -> list[str]:
+    # A copy named after its source keeps what the official download name holds, however clean the copy is
+    if t.rename or t.exact is not None:
+        return []
+    count = sum(naming.is_download_name(source.path.stem) for source in t.images)
+    if not count:
+        return []
+    which = "a copy is" if count == 1 else f"{count} copies are"
+    return [
+        f"{which} named after the official download name, which holds the start of the prompt and the seed; "
+        "--rename names copies by date and number instead"
+    ]
 
 
 def _kept(data: bytes, when: datetime) -> naming.Meta:
@@ -93,8 +128,8 @@ def _kept(data: bytes, when: datetime) -> naming.Meta:
     return replace(output.recorded(record, ""), date=when, width=width, height=height)
 
 
-def _listing(sources: tuple[Path, ...], files: list[Path]) -> list[dict[str, str]]:
-    return [{"source": str(a), "file": str(b)} for a, b in zip(sources, files, strict=True)]
+def _listing(images: tuple[Source, ...], files: list[Path]) -> list[dict[str, str]]:
+    return [{"source": str(a.path), "file": str(b)} for a, b in zip(images, files, strict=True)]
 
 
 def color(text: str | None, default: tuple[int, int, int]) -> tuple[int, int, int]:

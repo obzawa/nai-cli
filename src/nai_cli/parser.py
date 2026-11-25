@@ -200,13 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
     st = sub.add_parser(
         "strip", help="save copies of images without generation settings, EXIF or stealth data, for sharing"
     )
-    st.add_argument("images", nargs="+", type=values.path, metavar="IMAGE")
-    st.add_argument(
-        "-o",
-        "--output",
-        metavar="PATH",
-        help="a .png name for one image, or a folder (default: NAME_clean.png in the output folder)",
-    )
+    _add_copy_sources(st, "clean")
 
     rd = sub.add_parser("redact", help="save copies of images with regions pixelated, blurred or filled, for sharing")
     _add_copy_args(rd, "redacted")
@@ -233,7 +227,12 @@ def build_parser() -> argparse.ArgumentParser:
     wm = sub.add_parser("watermark", help="save copies of images with visible text or a logo, for sharing")
     _add_copy_args(wm, "watermarked")
     wm.add_argument("--text", help="text to write; \\n breaks lines (default: NovelAI unless --logo is given)")
-    wm.add_argument("--font", type=values.path, metavar="FILE", help="a TrueType or OpenType font, needed beyond ASCII")
+    wm.add_argument(
+        "--font",
+        type=values.path,
+        metavar="FILE",
+        help="a TrueType or OpenType font (default: the built-in one, else an installed one that draws the text)",
+    )
     wm.add_argument("--color", metavar="#RRGGBB", help="text colour (default: #FFFFFF)")
     wm.add_argument("--logo", type=values.path, metavar="IMAGE", help="an image to place as a logo")
     for prefix, what, defaults in (
@@ -383,14 +382,26 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def _add_copy_args(p: argparse.ArgumentParser, label: str) -> None:
-    p.add_argument("images", nargs="+", type=values.path, metavar="IMAGE")
+def _add_copy_sources(p: argparse.ArgumentParser, label: str) -> None:
+    p.add_argument(
+        "images", nargs="+", type=values.path, metavar="IMAGE", help="images, or folders for the images in them"
+    )
     p.add_argument(
         "-o",
         "--output",
         metavar="PATH",
         help=f"a .png name for one image, or a folder (default: NAME_{label}.png in the output folder)",
     )
+    p.add_argument("-r", "--recursive", action=SWITCH, help="also copy the images in the folders inside folders given")
+    p.add_argument(
+        "--rename",
+        action=SWITCH,
+        help="name copies by date and number, such as 20261125-0001.png, not after their source",
+    )
+
+
+def _add_copy_args(p: argparse.ArgumentParser, label: str) -> None:
+    _add_copy_sources(p, label)
     p.add_argument(
         "--keep-metadata",
         action=SWITCH,

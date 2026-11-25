@@ -147,6 +147,7 @@ def _cases(root: Path) -> list[tuple[str, list[str], str]]:
         ("meta", ["meta", str(pic)], "ok"),
         ("meta folder", ["meta", str(work)], "lines"),
         ("strip", ["strip", str(pic), "-o", str(out / "stripped.png")], "ok"),
+        ("strip folder", ["strip", str(work), "-r", "--rename", "-o", str(out / "shared")], "ok"),
         ("redact", ["redact", str(pic), "--region", "rect:0.1,0.1,0.5,0.5", "-o", str(out / "redacted.png")], "ok"),
         ("watermark", ["watermark", str(pic), "-o", str(out / "marked.png")], "ok"),
         ("watermark keep", ["watermark", str(pic), "--keep-metadata", "-o", str(out / "kept.png")], "ok"),

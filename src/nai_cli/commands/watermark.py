@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from nai_cli import errors, images, share
+from nai_cli import errors, fonts, images, share
 from nai_cli.commands import copies
 from nai_cli.commands.context import Context
 
@@ -30,7 +30,7 @@ def resolve(opts: dict[str, Any], ctx: Context) -> WatermarkSettings:
     text = unicodedata.normalize("NFC", text.replace("\\n", "\n")) if text else None
     font = Path(opts["font"]) if opts.get("font") else None
     if text:
-        share.require_glyphs(text, font)
+        font = share.text_font(text, font, fonts.offered(text))
     mark = share.Watermark(
         text=text,
         text_layer=_layer(opts, "", defaults.text_layer),

@@ -293,6 +293,15 @@ def _clean(name: str) -> str:
     return fit(P.js_trim(out[:_NAME_LENGTH]) if len(out) > _NAME_LENGTH else out)
 
 
+# The official download name: the prompt's first 80 characters, " s-" and the seed, " (N)" for the N-th image of a
+# request; browsers add " (N)" again for a name already taken
+_DOWNLOAD_NAME = re.compile(r" s-[0-9]+(?: \([0-9]+\))*$")
+
+
+def is_download_name(stem: str) -> bool:
+    return _DOWNLOAD_NAME.search(stem) is not None
+
+
 def fallback(meta: Meta) -> str:
     """The official client's name when a template renders empty: the prompt's start and the seed."""
     seed = "" if meta.seed is None else str(meta.seed)

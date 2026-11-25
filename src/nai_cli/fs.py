@@ -6,6 +6,8 @@ import stat
 import sys
 import time
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import BinaryIO
@@ -34,6 +36,32 @@ def free_name(path: Path, taken: set[Path] | None = None) -> Path:
     while os.path.lexists(candidate := numbered(path, n)) or (taken is not None and candidate in taken):
         n += 1
     return candidate
+
+
+@dataclass
+class DayNumbers:
+    """Names by the day of a run and a number in it, 20261125-0001.png. Each folder counts on from the highest
+    number the day's names there hold, whatever their suffix, and the next name is one higher whether or not this
+    one is written, so a dry run names copies as its run does."""
+
+    when: datetime
+    highest: dict[Path, int] = field(default_factory=dict)
+
+    def next_in(self, folder: Path, suffix: str = ".png") -> Path:
+        if folder not in self.highest:
+            self.highest[folder] = max(_day_numbers(folder, f"{self.when:%Y%m%d}-"), default=0)
+        self.highest[folder] += 1
+        return folder / f"{self.when:%Y%m%d}-{self.highest[folder]:04d}{suffix}"
+
+
+def _day_numbers(folder: Path, day: str) -> list[int]:
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        # A folder not made yet holds none
+        return []
+    stems = (name.partition(".")[0].removeprefix(day) for name in names if name.startswith(day))
+    return [int(stem) for stem in stems if len(stem) >= 4 and stem.isascii() and stem.isdigit()]
 
 
 def create(path: Path, data: bytes | str, private: bool = False) -> Path:

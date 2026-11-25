@@ -2,6 +2,7 @@
 
 import math
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -238,16 +239,37 @@ def _text_mark(w: Watermark, canvas: tuple[int, int]) -> _Text:
     return full if scale >= 1 else mark(max(1.0, font_size * scale))
 
 
+def text_font(text: str, font: Path | None, offered: Iterable[Path]) -> Path | None:
+    """The font to draw text in: the one given, else the built-in one, else the first font offered that draws all
+    of it, the installed fonts in practice. A font given is never replaced; text no font draws is refused."""
+    if font is not None:
+        require_glyphs(text, font)
+        return font
+    missing, face = _missing(text, None)
+    # Without FreeType no font file can be used, and require_glyphs says so
+    if not missing or not isinstance(face, ImageFont.FreeTypeFont):
+        require_glyphs(text, None)
+        return None
+    chosen = next((path for path in offered if _draws(text, path)), None)
+    if chosen is None:
+        raise errors.NaiError(
+            errors.BAD_ARGS,
+            f"neither the built-in font nor an installed one has glyphs for {missing}; give --font a font that has them",
+        )
+    return chosen
+
+
+def _draws(text: str, font: Path) -> bool:
+    try:
+        return not _missing(text, font)[0]
+    except errors.NaiError:
+        # A damaged or unreadable installed font is passed over like one without the glyphs
+        return False
+
+
 def require_glyphs(text: str, font: Path | None) -> None:
-    """Text the font cannot draw is refused, not drawn as boxes; the built-in font has little beyond ASCII. Each
-    character is checked in the composed form the mark is drawn in, a combining mark left over on its own; joiners
-    and variation selectors only change the character beside them and are not checked."""
-    shown = [ch for ch in unicodedata.normalize("NFC", text) if not ch.isspace() and not _invisible(ch)]
-    if not shown:
-        raise errors.NaiError(errors.BAD_ARGS, "the text has nothing to draw")
-    face = load_font(font, _GLYPH_CHECK_SIZE)
-    boxes = {_drawn(face, ch) for ch in _NO_GLYPHS}
-    missing = "".join(dict.fromkeys(ch for ch in shown if _drawn(face, ch) in boxes | {None}))
+    """Text the font cannot draw is refused, not drawn as boxes; the built-in font has little beyond ASCII."""
+    missing, face = _missing(text, font)
     if not missing:
         return
     if not isinstance(face, ImageFont.FreeTypeFont):
@@ -258,6 +280,18 @@ def require_glyphs(text: str, font: Path | None) -> None:
         )
     name = "the built-in font" if font is None else font.name
     raise errors.NaiError(errors.BAD_ARGS, f"{name} has no glyphs for {missing}; give --font a font that has them")
+
+
+def _missing(text: str, font: Path | None) -> tuple[str, Font]:
+    """The characters of text the font cannot draw, and the font. Each character is checked in the composed form
+    the mark is drawn in, a combining mark left over on its own; joiners and variation selectors only change the
+    character beside them and are not checked."""
+    shown = [ch for ch in unicodedata.normalize("NFC", text) if not ch.isspace() and not _invisible(ch)]
+    if not shown:
+        raise errors.NaiError(errors.BAD_ARGS, "the text has nothing to draw")
+    face = load_font(font, _GLYPH_CHECK_SIZE)
+    boxes = {_drawn(face, ch) for ch in _NO_GLYPHS}
+    return "".join(dict.fromkeys(ch for ch in shown if _drawn(face, ch) in boxes | {None})), face
 
 
 def _invisible(ch: str) -> bool:

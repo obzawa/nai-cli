@@ -55,7 +55,7 @@ Read the reference when the task comes up:
 
 Smaller ones:
 
-- Before the user shares an image, `nai strip IMAGE` saves a copy without its prompt and settings. `nai redact IMAGE --region rect:x1,y1,x2,y2` pixelates part of it and `nai watermark IMAGE --text TEXT` signs it; both drop the settings too. Copies never replace the source.
+- Before the user shares an image, `nai strip IMAGE` saves a copy without its prompt and settings. `nai redact IMAGE --region rect:x1,y1,x2,y2` pixelates part of it and `nai watermark IMAGE --text TEXT` signs it; both drop the settings too. Each takes folders, with `-r` for those inside, and `--rename` names copies by date and number when the source names hold the prompt. Copies never replace the source.
 - `nai tool pixel-snap IMAGE` turns AI pixel art into clean pixels, one per cell, for free; add `--upscale` for a viewable size.
 - A prompt written for ComfyUI with `COUPLE`, `AND ... MASK(...)` or `|` lines splits into characters with `--comfyui-characters`.
 - With the local extra installed (`nai local` shows it), `--region object:x,y` masks the object under a point for `inpaint` and `redact`, and `nai interrogate IMAGE` reads an image's tags into a prompt.

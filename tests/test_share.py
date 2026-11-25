@@ -10,7 +10,7 @@ from helpers import run
 from PIL import Image, ImageDraw, PngImagePlugin
 from samples import nai_image
 
-from nai_cli import cli, config, errors, images, inpaint, share, sheet
+from nai_cli import cli, config, errors, fonts, images, inpaint, share, sheet
 
 
 def _animation(path, frames=3):
@@ -181,14 +181,57 @@ def test_strip_clears_stealth_data_in_the_colours(magic):
         assert np.array_equal(copy, pixels)
 
 
-def test_text_the_font_cannot_draw_is_refused_before_any_copy(capsys, tmp_path):
+def test_text_the_font_cannot_draw_is_refused_before_any_copy(capsys, tmp_path, monkeypatch):
     source = tmp_path / "pic.png"
     nai_image(source, w=64, h=64)
+    damaged = tmp_path / "damaged.ttf"
+    damaged.write_bytes(b"not a font")
+    # No installed font draws it either: one is missing, one is damaged
+    monkeypatch.setattr(fonts, "offered", lambda text: iter([tmp_path / "none.ttf", damaged]))
     code, out = run(capsys, "watermark", str(source), "--text", "作者 me")
     assert (code, out["code"]) == (1, "bad_args") and "作者" in out["message"] and "--font" in out["message"]
     assert "files" not in out and not any(config.load(config.default_path()).output_dir.rglob("*.png"))
     code, out = run(capsys, "watermark", str(source), "--text", "by me\nline two")
     assert code == 0, out
+
+
+def test_text_the_built_in_font_draws_never_looks_for_installed_fonts(capsys, tmp_path, monkeypatch):
+    source = tmp_path / "pic.png"
+    nai_image(source, w=64, h=64)
+
+    def offered(text):
+        raise AssertionError("installed fonts searched")
+        yield
+
+    monkeypatch.setattr(fonts, "offered", offered)
+    code, out = run(capsys, "watermark", str(source), "--text", "by me")
+    assert code == 0, out
+
+
+def test_an_installed_font_draws_what_the_built_in_one_cannot(capsys, tmp_path, monkeypatch):
+    font = _system_font("msyh.ttc")
+    source = tmp_path / "pic.png"
+    nai_image(source, w=256, h=256)
+    damaged = tmp_path / "damaged.ttf"
+    damaged.write_bytes(b"not a font")
+    latin = _system_font("segoeui.ttf")
+    tried = []
+
+    def offered(text):
+        for path in (damaged, latin, font, _system_font("simsun.ttc")):
+            tried.append(path)
+            yield path
+
+    assert share.text_font("作者 me", None, offered("作者 me")) == font
+    # The first that draws the whole text is taken and the rest are not opened
+    assert tried == [damaged, latin, font]
+    monkeypatch.setattr(fonts, "offered", offered)
+    code, out = run(capsys, "watermark", str(source), "--text", "作者 me", "-o", str(tmp_path / "out.png"))
+    assert code == 0, out
+    drawn = np.asarray(Image.open(out["files"][0]["file"]).convert("RGB")).astype(int)
+    assert np.abs(drawn - np.asarray(Image.open(source).convert("RGB")).astype(int)).max() > 0
+    # A font given is used as it is, even when an installed one would draw the text too
+    assert share.text_font("by me", latin, offered("by me")) == latin
 
 
 _FONTS = Path("C:/Windows/Fonts")

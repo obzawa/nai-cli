@@ -12,7 +12,7 @@ Each layer imports only from the layers below it. `tests/test_architecture.py` e
 | Commands | `commands/*.py` | the steps of one command: read inputs, check prices and budget, call the core, save, report |
 | Orchestration | `charge.py`, `batch.py`, `grid.py`, `import_image.py`, `caches.py` | paid-request lifecycle, resumable job runs and grids of them, the official import assignment chain, the tokenizer files and Vibe encodings kept between runs |
 | Core | `request.py`, `prompt.py`, `tidy.py`, `models.py`, `presets.py`, `meta.py`, `rerun.py`, `vibe.py`, `inpaint.py`, `enhance.py`, `cost.py`, `naming.py`, `tokenizer.py`, `lint.py`, `tags.py`, `resample.py`, `images.py`, `share.py`, `random_prompt.py`, `sheet.py`, `pixel_snap.py`, `comfyui.py`, `tagger.py`, `sam.py` | NovelAI rules as plain functions over plain data |
-| I/O | `api.py`, `auth.py`, `fs.py`, `ledger.py`, `config.py`, `local_models.py`, `decode.py`, `values.py`, `errors.py` | network, accounts and logins, disk, the spend ledger, the config file, local model files, reading image bytes, values as files and options give them, error codes |
+| I/O | `api.py`, `auth.py`, `fs.py`, `ledger.py`, `config.py`, `local_models.py`, `fonts.py`, `decode.py`, `values.py`, `errors.py` | network, accounts and logins, disk, the spend ledger, the config file, local model files, installed fonts, reading image bytes, values as files and options give them, error codes |
 
 The core never reads argv, prints, or decides where files go. It reads the files it is given and the data shipped inside the package, but never looks for files, talks to the network, loads models, reads the config, the data folder or the ledger, or writes; of the I/O layer it imports only `errors`, `values` and `decode`. Whatever it needs from outside, such as a tokenizer or a local model, is loaded above it and passed in. A function that needs a decision from the user takes it as an argument.
 
@@ -69,6 +69,7 @@ Every rule lives in one place. A second implementation of a rule drifts from the
 | Grid axes and their cells | `grid.py` |
 | Waiting between batch jobs | `commands/batch.py` sets it, `commands/context.py` waits |
 | Redaction and watermark drawing | `share.py` |
+| Installed fonts offered when the built-in one lacks glyphs | `fonts.py` |
 | Names and writing of sharing copies | `commands/copies.py` |
 | Local ONNX models: loading, the SAM files and their hashes, the optional install | `local_models.py` |
 | Error codes | `errors.py` |

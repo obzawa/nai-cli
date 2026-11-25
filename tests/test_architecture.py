@@ -38,7 +38,7 @@ LAYERS = [
         "tagger",
         "sam",
     },
-    {"local_models", "api", "auth", "fs", "ledger", "config", "errors", "decode", "values", "__init__"},
+    {"local_models", "fonts", "api", "auth", "fs", "ledger", "config", "errors", "decode", "values", "__init__"},
 ]
 CORE = LAYERS[3]
 # The core reads the files it is given, but never talks to the network, loads models, reads the config or writes
