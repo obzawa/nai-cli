@@ -165,6 +165,22 @@ def test_strip_file_keeps_the_pixels_of_a_still_image(tmp_path):
     assert Image.open(io.BytesIO(data)).getpixel((0, 0)) == (0, 0, 255)
 
 
+@pytest.mark.parametrize("magic", [b"stealth_rgbinfo", b"stealth_rgbcomp", b"stealth_rgbnone"])
+def test_strip_clears_stealth_data_in_the_colours(magic):
+    width, height = 8, 32
+    pixels = np.full((height, width, 3), 200, np.uint8)
+    bits = np.unpackbits(np.frombuffer(magic + b"\0\0\0\x08\x01", np.uint8))
+    for i, bit in enumerate(bits):
+        pixel = i // 3
+        pixels[pixel % height, pixel // height, i % 3] |= bit
+    data = images.strip_metadata(Image.fromarray(pixels, "RGB"))
+    copy = np.asarray(Image.open(io.BytesIO(data)))
+    if magic.startswith(b"stealth_rgb") and magic != b"stealth_rgbnone":
+        assert not (copy & 1).any() and (copy >= 200).all()
+    else:
+        assert np.array_equal(copy, pixels)
+
+
 def test_text_the_font_cannot_draw_is_refused_before_any_copy(capsys, tmp_path):
     source = tmp_path / "pic.png"
     nai_image(source, w=64, h=64)

@@ -152,6 +152,17 @@ def test_itxt_and_ztxt_chunks():
     assert meta.png_text_chunks(png) == {"Comment": "内容", "K": "v"}
 
 
+def test_text_chunks_are_latin1():
+    # NovelAI writes text that fits Latin-1 as tEXt in single bytes, a no-break space as 0xA0
+    png = (
+        decode.PNG_SIGNATURE
+        + decode.png_chunk(b"tEXt", b"Description\0caf\xe9\xa0x")
+        + decode.png_chunk(b"zTXt", b"K\0\0" + zlib.compress(b"\x80\x81"))
+        + decode.png_chunk(b"IEND", b"")
+    )
+    assert meta.png_text_chunks(png) == {"Description": "caf\xe9\xa0x", "K": "€\x81"}
+
+
 @pytest.mark.parametrize(
     "text,code",
     [

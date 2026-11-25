@@ -334,10 +334,13 @@ def _vocabulary(data: dict[str, Any]) -> Labels | None:
     if not by_index:
         return None
     of_tag = data.get("tag_to_category") if isinstance(data.get("tag_to_category"), dict) else {}
-    names_of = data.get("categories") if isinstance(data.get("categories"), dict) else {}
+    names = data.get("categories") if isinstance(data.get("categories"), dict) else {}
+    # Most files map a category id to its name; CL tagger v2 lists each category's tags under its name instead
+    names_of = {str(k): v for k, v in names.items() if isinstance(v, str | int | float | bool)}
+    listed = {str(tag): name for name, tags in names.items() if isinstance(tags, list) for tag in tags}
     labels = []
     for i in sorted(by_index):
-        raw = of_tag.get(by_index[i])
+        raw = of_tag.get(by_index[i], listed.get(by_index[i]))
         category = None if raw is None else names_of.get(str(raw), raw)
         labels.append(Label(by_index[i], category_of(None if category is None else str(category), by_index[i])))
     return Labels(labels)

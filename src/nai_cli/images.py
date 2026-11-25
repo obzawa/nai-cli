@@ -5,12 +5,14 @@ import math
 from collections.abc import Collection
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageOps, ImageSequence
 
 from nai_cli import decode, errors, presets, resample
 from nai_cli.presets import GRID, MAX_PIXELS, nearest_grid
 
 LATENT_SCALE = 8
+_RGB_STEALTH = (b"stealth_rgbinfo", b"stealth_rgbcomp")
 PRECISE_REFERENCE_CANVASES = [(1024, 1536), (1536, 1024), (1472, 1472)]
 _PORTRAIT_BUCKETS = [
     (width, height)
@@ -239,7 +241,7 @@ def size_of(path: str | Path) -> tuple[int, int]:
 
 def strip_metadata(img: Image.Image) -> bytes:
     """A PNG of the pixels alone: no text chunks, EXIF or colour profile, and no low alpha bit, where stealth
-    settings hide."""
+    settings hide, nor stealth settings other tools hide in the colours."""
     return to_png(_bare(img))
 
 
@@ -290,5 +292,21 @@ def _bare(img: Image.Image) -> Image.Image:
         img.putalpha(img.getchannel("A").point(lambda v: 255 if v >= 254 else 0 if v <= 1 else v & 0xFE))
     elif img.mode not in ("RGB", "L"):
         img = img.convert("RGB")
+    if _has_rgb_stealth(img):
+        # The colours are the picture, so their low bits are cleared only when stealth data starts there
+        pixels = np.array(img)
+        pixels[..., :3] &= 0xFE
+        img = Image.fromarray(pixels, img.mode)
     # A new image carries none of the source's info, which Pillow would otherwise write back
     return Image.frombytes(img.mode, img.size, img.tobytes())
+
+
+def _has_rgb_stealth(img: Image.Image) -> bool:
+    """Whether the colours' low bits, read column-major red, green, blue per pixel, start with the magic of the
+    stealth pnginfo extension for Stable Diffusion web UIs."""
+    if img.mode not in ("RGB", "RGBA") or img.width * img.height * 3 < 8 * len(_RGB_STEALTH[0]):
+        return False
+    pixels = -(-8 * len(_RGB_STEALTH[0]) // 3)
+    columns = np.asarray(img)[..., :3].transpose(1, 0, 2).reshape(-1, 3)
+    bits = (columns[:pixels] & 1).reshape(-1)[: 8 * len(_RGB_STEALTH[0])]
+    return np.packbits(bits).tobytes() in _RGB_STEALTH

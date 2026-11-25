@@ -18,6 +18,13 @@ TEXT_CHUNKS = (b"tEXt", b"iTXt", b"zTXt")
 MAX_INFLATED = 64 * 1024 * 1024
 # zlib's wbits for each container
 ZLIB, GZIP, RAW = zlib.MAX_WBITS, 16 + zlib.MAX_WBITS, -zlib.MAX_WBITS
+# Browsers read Latin-1 as windows-1252, and so does the official client for tEXt; its unassigned bytes stay as they are
+_WINDOWS_1252 = {b: bytes([b]).decode("cp1252") for b in range(0x80, 0xA0) if b not in (0x81, 0x8D, 0x8F, 0x90, 0x9D)}
+
+
+def latin1_text(data: bytes) -> str:
+    """The text of a tEXt or zTXt chunk, which PNG keeps in Latin-1."""
+    return data.decode("latin-1").translate(_WINDOWS_1252)
 
 
 def inflate(data: bytes, wbits: int = ZLIB, limit: int = MAX_INFLATED) -> bytes:

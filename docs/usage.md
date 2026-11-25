@@ -283,7 +283,7 @@ Each cell is a job as in `nai batch`, with the cell's values added last, so they
 
 `strip`, `redact` and `watermark` never change the source. Each copy is a PNG named after its source with `_clean`, `_redacted` or `_watermarked`, saved in the output folder by its folder rule like a generated image, which goes by the settings the copy keeps, so a copy without them is filed by date alone; the file name template does not apply. `-o FOLDER` saves each copy there under its source's name, and `-o NAME.png` names the copy of one image. A name that is taken, `-o` included, gets the next number. Every copy is made before any is written, so one bad image leaves none behind.
 
-Copies drop the generation settings, EXIF, colour profile and the low alpha bit where stealth settings hide. `redact` and `watermark` take `--keep-metadata` to carry the source's settings over instead: PNG text as it is, and settings a WebP keeps in EXIF or an image hides in its alpha channel written as PNG text, since the edit would lose them. Both edit still images only; an animated one is refused.
+Copies drop the generation settings, EXIF, colour profile and the low alpha bit where stealth settings hide, and the low colour bits when they hold the `stealth_rgbinfo` or `stealth_rgbcomp` data other tools write. `redact` and `watermark` take `--keep-metadata` to carry the source's settings over instead: PNG text as it is, and settings a WebP keeps in EXIF or an image hides in its alpha channel written as PNG text, since the edit would lose them. Both edit still images only; an animated one is refused.
 
 ```bash
 nai redact pic.png --region rect:0.6,0.1,0.95,0.4

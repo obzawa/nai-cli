@@ -63,7 +63,7 @@ def png_text_entries(data: bytes) -> list[tuple[str, str]]:
         try:
             if kind == b"tEXt":
                 key, value = body.split(b"\0", 1)
-                out.append((key.decode("latin1"), value.decode("utf-8", "replace")))
+                out.append((key.decode("latin1"), decode.latin1_text(value)))
             elif kind == b"iTXt":
                 key, rest = body.split(b"\0", 1)
                 compressed = rest[0]
@@ -74,7 +74,7 @@ def png_text_entries(data: bytes) -> list[tuple[str, str]]:
                 out.append((key.decode("latin1"), text.decode("utf-8", "replace")))
             elif kind == b"zTXt":
                 key, rest = body.split(b"\0", 1)
-                out.append((key.decode("latin1"), decode.inflate(rest[1:]).decode("utf-8", "replace")))
+                out.append((key.decode("latin1"), decode.latin1_text(decode.inflate(rest[1:]))))
         except (ValueError, IndexError):
             continue
     return out
