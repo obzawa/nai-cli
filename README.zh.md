@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-nai-cli 是 [NovelAI](https://novelai.net) 图像生成的非官方命令行客户端，支持 V5、V4.5 与 V4 的文生图、图生图、局部重绘、Enhance、放大、导演工具与 Vibe，并能读出图片中保存的参数以重新生成。
+nai-cli 是 [NovelAI](https://novelai.net) 图像生成的非官方命令行客户端，支持 V5、V4.5 与 V4 的文生图、图生图、局部重绘、Enhance、放大、导演工具、Vibe 与精准参考，并能读出图片中保存的参数以重新生成。
 
 它按官网前端的规则组装请求，相同的参数与种子会生成与官网相同的图像，例外见[规则对照](docs/official-parity.md#intentional-differences)。每条命令输出 JSON（一个对象，或每个任务一行），便于在脚本和其他程序中调用。
 

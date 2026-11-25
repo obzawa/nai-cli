@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-nai-cli is an unofficial command-line client for [NovelAI](https://novelai.net) image generation. It covers text to image, image to image, inpainting, Enhance, upscaling, the Director tools and Vibes on V5, V4.5 and V4, and reads the settings stored in images so they can be generated again.
+nai-cli is an unofficial command-line client for [NovelAI](https://novelai.net) image generation. It covers text to image, image to image, inpainting, Enhance, upscaling, the Director tools, Vibes and precise references on V5, V4.5 and V4, and reads the settings stored in images so they can be generated again.
 
 It builds requests by the same rules as the official web client, so the same settings and seed produce the same image; the [parity notes](docs/official-parity.md#intentional-differences) list the exceptions. Every command prints JSON, one object or one line per job, which makes it easy to call from scripts and other programs.
 
