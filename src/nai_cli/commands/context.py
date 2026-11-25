@@ -52,6 +52,8 @@ class Context:
     shared: _Shared
     # From the front end: stdin read once, lines printed as they come, jobs run and parsed in process
     read_stdin: Callable[[], str]
+    # A password: prompted for without echo at a terminal, else read from standard input
+    read_secret: Callable[[str], str]
     emit: Callable[[dict[str, Any]], None]
     run_job: Callable[[list[str], "Context"], Result]
     parse_job: Callable[[list[str]], dict[str, Any]]
@@ -72,13 +74,14 @@ class Context:
         cls,
         config_path: Path,
         read_stdin: Callable[[], str],
+        read_secret: Callable[[str], str],
         emit: Callable[[dict[str, Any]], None],
         run_job: Callable[[list[str], "Context"], Result],
         parse_job: Callable[[list[str]], dict[str, Any]],
         argv: tuple[str, ...],
         account: str | None = None,
     ) -> "Context":
-        return cls(_Shared(config_path), read_stdin, emit, run_job, parse_job, argv=argv, account=account)
+        return cls(_Shared(config_path), read_stdin, read_secret, emit, run_job, parse_job, argv=argv, account=account)
 
     @property
     def config(self) -> config.Config:
@@ -175,6 +178,7 @@ class Context:
         return replace(
             self,
             read_stdin=self._refuse_stdin,
+            read_secret=self._refuse_secret,
             emit=self._refuse_lines,
             argv=tuple(argv),
             dry_run=dry_run,
@@ -195,6 +199,10 @@ class Context:
     @staticmethod
     def _refuse_lines(line: dict[str, Any]) -> None:
         raise errors.NaiError(errors.BAD_ARGS, LINES_IN_JOB)
+
+    @staticmethod
+    def _refuse_secret(prompt: str) -> str:
+        raise errors.NaiError(errors.BAD_ARGS, "a job cannot ask for a password; sign in with nai account login first")
 
     @staticmethod
     def _refuse_stdin() -> str:

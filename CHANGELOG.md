@@ -12,6 +12,7 @@
 - `strip`, `redact` and `watermark` take folders, `-r` for the folders inside them, keeping each copy's place under an `-o` folder.
 - `--rename` names sharing copies by date and number, and a copy named after the official download name, which holds the start of the prompt and the seed, warns.
 - `watermark` draws Chinese, Japanese, Korean and other text the built-in font lacks in an installed font, without `--font`.
+- `nai account login` asks for the password at a terminal without showing it; piped input works as before.
 
 ## 0.1.0 - 2026-11-20
 

@@ -1,5 +1,6 @@
 """The command line: argv into settings, the command run, its result printed as JSON with an exit code."""
 
+import getpass
 import sys
 import traceback
 from collections.abc import Callable
@@ -33,7 +34,10 @@ def _run(argv: list[str], parent: Context | None) -> dict[str, Any]:
     account: str | None = opts.pop("account")
     if parent is None:
         path = config_path or config.default_path()
-        ctx = Context.create(path, _stdin_reader(), _emit, _run_job, _parse_job, tuple(argv), account)
+        read_stdin = _stdin_reader()
+        ctx = Context.create(
+            path, read_stdin, _secret_reader(read_stdin), _emit, _run_job, _parse_job, tuple(argv), account
+        )
     else:
         # A job keeps the batch's config, and so its limits; batch refuses --config in a job
         ctx = parent if account is None else parent.with_account(account)
@@ -90,6 +94,20 @@ def _stdin_reader() -> Callable[[], str]:
             return raw.decode("utf-8-sig")
         except (OSError, UnicodeDecodeError) as e:
             raise errors.NaiError(errors.BAD_ARGS, f"cannot read standard input: {e}") from e
+
+    return read
+
+
+def _secret_reader(read_stdin: Callable[[], str]) -> Callable[[str], str]:
+    def read(prompt: str) -> str:
+        # At a terminal the secret is typed without echo, as gh and ssh take one; piped, it is standard input
+        if sys.stdin is None or not sys.stdin.isatty():
+            return read_stdin().rstrip("\r\n")
+        try:
+            # getpass writes its prompt to the terminal, never to standard output, which holds the JSON
+            return getpass.getpass(prompt)
+        except EOFError:
+            return ""
 
     return read
 

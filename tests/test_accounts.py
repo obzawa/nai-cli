@@ -136,6 +136,43 @@ def test_login_needs_a_password_on_standard_input(capsys, monkeypatch):
     assert code == 1 and out["code"] == "bad_args"
 
 
+class _Terminal(io.StringIO):
+    def isatty(self):
+        return True
+
+
+def test_at_a_terminal_the_password_is_prompted_for_without_echo(capsys, monkeypatch, tmp_path):
+    keys = []
+    monkeypatch.setattr(auth.api, "login", lambda endpoint, key: keys.append(key) or "token")
+    monkeypatch.setattr("sys.stdin", _Terminal("never read\n"))
+    prompts = []
+
+    def getpass(prompt):
+        prompts.append(prompt)
+        return "hunter2"
+
+    monkeypatch.setattr(cli.getpass, "getpass", getpass)
+    code, out = run(capsys, "account", "login", "mine", "--email", "me@example.com")
+    assert code == 0 and prompts == ["Password: "], out
+    # The same key as the password piped in gives
+    _stdin(monkeypatch, "hunter2\n")
+    code, out = run(capsys, "account", "login", "mine", "--email", "me@example.com")
+    assert code == 0 and keys[0] == keys[1], out
+
+    def closed(prompt):
+        raise EOFError
+
+    monkeypatch.setattr("sys.stdin", _Terminal())
+    monkeypatch.setattr(cli.getpass, "getpass", closed)
+    code, out = run(capsys, "account", "login", "mine", "--email", "me@example.com")
+    assert (code, out["code"]) == (1, "bad_args") and "prompt" in out["message"]
+    jobs = tmp_path / "jobs.jsonl"
+    jobs.write_text('["account", "login", "mine", "--email", "me@example.com"]\n', encoding="utf-8")
+    monkeypatch.setattr(cli.getpass, "getpass", getpass)
+    code, lines = run_batch(capsys, str(jobs))
+    assert lines[0]["code"] == "bad_args" and "password" in lines[0]["message"] and len(prompts) == 1
+
+
 def _logged_in(monkeypatch, expires):
     store = {
         "current": "mine",

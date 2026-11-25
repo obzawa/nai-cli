@@ -334,7 +334,10 @@ def build_parser() -> argparse.ArgumentParser:
     a = sub.add_parser("account", help="show the balance, list or switch accounts, or sign in with an email")
     a.add_argument("action", choices=["show", "list", "use", "login", "logout"], nargs="?", default="show")
     a.add_argument("name", nargs="?", help="the account to use, sign in as or sign out")
-    a.add_argument("--email", help="with login: the account's email; the password is read from standard input")
+    a.add_argument(
+        "--email",
+        help="with login: the account's email; the password is asked for at a terminal, else read from standard input",
+    )
     a.add_argument("--month", metavar="YYYY-MM", help="with show: the month to total (default: this month)")
 
     st = sub.add_parser("stats", help="total the requests in the ledger by day, command or model")

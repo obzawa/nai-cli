@@ -51,10 +51,10 @@ def run(s: AccountSettings, ctx: Context) -> dict[str, Any]:
             auth.use(s.name or "", ctx.config, dry_run=s.dry_run)
             return _changed(s)
         case "login":
-            # The password comes from standard input only, so it stays out of the shell history and the config
-            password = ctx.read_stdin().rstrip("\r\n")
+            # The password is never an option, so it stays out of the shell history and the config
+            password = ctx.read_secret("Password: ")
             if not password:
-                raise errors.NaiError(errors.BAD_ARGS, "pipe the password to standard input")
+                raise errors.NaiError(errors.BAD_ARGS, "type the password at the prompt or pipe it to standard input")
             return {"ok": True, **auth.login(s.name or "", s.email or "", password, ctx.config, ctx.now())}
         case "logout":
             if not auth.logout(s.name or "", dry_run=s.dry_run):
