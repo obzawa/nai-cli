@@ -1,0 +1,27 @@
+name: Changelog
+
+# Apart from CI, so adding or removing the label runs only this
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  # A change to the package is a change users meet; a pull request labelled "skip changelog" says it is not
+  changelog:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip changelog') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE"...HEAD)
+          if grep -q '^src/' <<< "$changed" && ! grep -qx 'CHANGELOG.md' <<< "$changed"; then
+            echo '::error::src/ changed but CHANGELOG.md did not; add a line under Unreleased or label the pull request "skip changelog"'
+            exit 1
+          fi

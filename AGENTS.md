@@ -11,7 +11,7 @@ ruff check
 ruff format
 ```
 
-Run all of them before finishing a change. CI runs the same checks on Linux, Windows and macOS, each with Python 3.11 to 3.14. Each also runs `python .github/scripts/smoke.py tokenizers`, which calls the installed `nai` once per offline feature in a throwaway home with the network blocked; add a case there for a new command.
+Run all of them before finishing a change. CI runs the same checks on Linux, Windows and macOS, each with Python 3.11 to 3.14. Each also runs `python .github/scripts/smoke.py tokenizers`, which calls the installed `nai` once per offline feature in a throwaway home with the network blocked; add a case there for a new command, which `tests/test_docs.py` checks.
 
 ## Rules
 
@@ -24,9 +24,9 @@ Run all of them before finishing a change. CI runs the same checks on Linux, Win
 - `tests/private/` holds generation settings from real images. It is not tracked; never commit it or quote from it.
 - Code, comments, messages and documentation are in English. README.zh.md mirrors README.md.
 - Comments explain why, not what.
-- When commands or flags change, update `skills/nai-cli` as well. `tests/test_skill.py` fails when the skill mentions a command or flag that does not exist.
+- When commands or flags change, update docs/usage.md and `skills/nai-cli` as well. `tests/test_docs.py` fails when usage.md leaves out a command or option, `tests/test_skill.py` when the skill mentions a command or flag that does not exist.
 - Keep the version in `pyproject.toml` and `src/nai_cli/__init__.py` in step.
 
 ## Releases
 
-Record user-visible changes under `## Unreleased` at the top of CHANGELOG.md, adding the heading if it is missing. To release, rename that heading to `## X.Y.Z - YYYY-MM-DD`, set the same version in both files above, commit, and push the tag `vX.Y.Z`. The release workflow runs the full CI, checks the tag against the version and the changelog, builds and tests the package, publishes it to PyPI and creates the GitHub release with that changelog section. PyPI never accepts the same version twice, so fixing a published release takes a new version. If a release run fails partway, re-run only its failed jobs; re-running the whole workflow uploads to PyPI again and fails.
+Record user-visible changes under `## Unreleased` at the top of CHANGELOG.md, adding the heading if it is missing. A pull request that changes `src/` fails the Changelog check unless it changes CHANGELOG.md too or carries the label `skip changelog`, for changes users do not meet. To release, rename that heading to `## X.Y.Z - YYYY-MM-DD`, set the same version in both files above, commit, and push the tag `vX.Y.Z`. The release workflow runs the full CI, checks the tag against the version and the changelog, builds and tests the package, publishes it to PyPI and creates the GitHub release with that changelog section. PyPI never accepts the same version twice, so fixing a published release takes a new version. If a release run fails partway, re-run only its failed jobs; re-running the whole workflow uploads to PyPI again and fails.

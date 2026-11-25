@@ -153,6 +153,9 @@ def _cases(root: Path) -> list[tuple[str, list[str], str]]:
         ("watermark keep", ["watermark", str(pic), "--keep-metadata", "-o", str(out / "kept.png")], "ok"),
         ("meta of kept", ["meta", str(out / "kept.png")], "ok"),
         ("pixel-snap", ["tool", "pixel-snap", str(art), "-o", str(out / "snapped.png")], "ok"),
+        # Both stop before any request: tags has no token here, interrogate no tagger model
+        ("tags without a token", ["tags", "あお", "blue h"], "error"),
+        ("interrogate without a model", ["interrogate", str(pic)], "error"),
         ("missing image", ["meta", str(work / "none.png")], "error"),
     ]
 

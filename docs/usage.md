@@ -118,7 +118,7 @@ On macOS and Linux, `XDG_CONFIG_HOME` and `XDG_DATA_HOME` are respected. `nai co
 | `nai stats` | Totals from the ledger by `--by day`, `command` or `model`, for the last `--days` (30) or from `--since` to `--until`. |
 | `nai config [init]` | Show the configuration, or create a config file; `init --force` replaces an existing one with the template. |
 
-Run `nai COMMAND --help` for the options of each command. Some examples:
+Run `nai COMMAND --help` for the options of each command, and `nai --version` for the version installed. Some examples:
 
 ```sh
 nai gen --prompt "1girl, rooftop, night" --dry-run
@@ -303,7 +303,7 @@ nai watermark pic.png --logo logo.png --text "" --logo-position bottom-right
 
 By default the watermark is the text `NovelAI` at the bottom right, sized 0.1 of the short edge, 0.035 from the edges, white at 0.82 opacity with a thin dark outline and shadow; a logo at the bottom left, 0.16 of the short edge on its longest side, at 0.85 opacity. With `--logo` and no `--text` only the logo is drawn. Text too long for the image shrinks to fit; `\n` breaks lines, which are right-aligned. The built-in font has little beyond ASCII. For other text without `--font FILE`, the first installed font that draws all of it is used: on Windows Segoe UI, Microsoft YaHei, Yu Gothic, Malgun Gothic and the like, on macOS Helvetica, Hiragino and Apple SD Gothic Neo, and on Linux DejaVu Sans, Noto Sans CJK or WenQuanYi, then the sans-serif fonts fontconfig picks for the characters. Kana put the Japanese fonts first and hangul the Korean ones, as Han characters take a different form in each language. A font given with `--font` is always used as it is. Text no font has glyphs for is refused, naming the characters, instead of drawn as boxes; accents written as separate marks are checked as the composed letter, and marks, joiners and emoji variation selectors are checked with the character they belong to. A Pillow built without FreeType has only a small bitmap font for Latin-1 text, such as ASCII and accented letters; it refuses `--font` and other text, and grid sheet labels show `?` for characters it cannot draw.
 
-`--position` and `--logo-position` take `top-left`, `top`, `top-right`, `left`, `center`, `right`, `bottom-left`, `bottom` or `bottom-right`, and `--size`, `--margin`, `--opacity` with their `--logo-` forms adjust each part. `--auto-place` mirrors the marks to another corner when it is at least 15% calmer than where they were put. `--auto-tone` greys them to stand out from what lies under them: lighter on dark areas, darker on light ones.
+`--position` and `--logo-position` take `top-left`, `top`, `top-right`, `left`, `center`, `right`, `bottom-left`, `bottom` or `bottom-right`, and `--size`, `--margin` and `--opacity` adjust the text, `--logo-size`, `--logo-margin` and `--logo-opacity` the logo. `--auto-place` mirrors the marks to another corner when it is at least 15% calmer than where they were put. `--auto-tone` greys them to stand out from what lies under them: lighter on dark areas, darker on light ones.
 
 ## Local models
 

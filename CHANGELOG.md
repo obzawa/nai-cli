@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-11-26
 
 - Precise references on V5 Full and V5 Curated, prepared in the official size buckets and keeping transparency. A reference with V5 Full Medium runs V5 Full, as in the official client. V5 takes no precise reference when inpainting.
 - Outfit references: `--ref` kinds `outfit`, `character+outfit` and `both-any-outfit` on V5.
